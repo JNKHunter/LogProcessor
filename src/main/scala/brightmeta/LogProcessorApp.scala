@@ -12,6 +12,7 @@ import scala.collection.mutable.{Map => MMap}
   * Created by John on 6/6/17.
   */
 
+
 object LogProcessorApp {
   def main(args: Array[String]): Unit = {
 
@@ -25,13 +26,17 @@ object LogProcessorApp {
 
     val messageStream = env.addSource(sourceFunction).map(string => {
       val keyVal = string.split(",")
-      (keyVal(0), keyVal(1))
-    }).keyBy(_._1)
+      (keyVal(0), keyVal(1)) // (hostId, IP)
+    })
+
+    val keyedMessageStream = messageStream.keyBy(_._1)  // hostId
       .mapWithState({
-        (log, requesters:Option[MMap[String, Int]]) => {
-          val requester = requesters.getOrElse(MMap[String, Int]().withDefaultValue(0))
-          requester.update(log._2, requester(log._2) + 1)
-          (log, Some(requester))
+        (log, requesters:Option[(Int, MMap[String, Int])]) => {
+          var requester = requesters.getOrElse((0, MMap[String, Int]().withDefaultValue(0)))
+          val count = requester._1 + 1
+          val testlog = log
+          requester._2.update(log._2, requester._2(log._2) + 1)
+          (log._1, Some((requester)))
         }
       })
 
