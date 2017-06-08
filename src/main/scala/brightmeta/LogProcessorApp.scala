@@ -28,6 +28,8 @@ class HostGroup {
   def addRequest = {_requestCount += 1}
 }
 
+case class Notification(hostId:String, ddos:Boolean)
+
 object LogProcessorApp {
   def main(args: Array[String]): Unit = {
 
@@ -54,22 +56,7 @@ object LogProcessorApp {
         }
       })*/
 
-
-    /*val windowStream = messageStream.keyBy(_.hostId)
-      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-      .fold(new WindowSnapshot()){
-        (accumulator, visit) => {
-          accumulator.addRequest
-          var hostData = accumulator.requestStructure.getOrElse(visit.hostId, (0, MMap[String, Int]()))
-          var hostTotal = hostData._1 + 1
-          var requesterTotal = hostData._2.getOrElse(visit.visitorIP, 0)
-          var newRequesterTotal = requesterTotal + 1
-          hostData._2.update(visit.visitorIP, newRequesterTotal)
-
-          accumulator.requestStructure.update(visit.hostId, (hostTotal, hostData._2))
-          accumulator
-        }
-      }*/
+    val requestThreshold = 10
 
     val windowStream = messageStream.keyBy(_.hostId)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
@@ -81,15 +68,21 @@ object LogProcessorApp {
           group.requestMap.update(visit.visitorIP, requesterTotal)
           group
         }
-      }
+      }.map(group => {
+      var reqPerWindow = group.requestCount/group.requestMap.size
+
+      var isDDos = false
+      if(group.requestCount/group.requestMap.size > requestThreshold) isDDos = true
+      new Notification(group.id.toString, isDDos)
+      
+    }).filter(notification => (
+      notification.ddos
+    ))
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
 
-    windowStream.map(acc => {
-      acc.requestCount
-      "Request count is: " + acc.requestCount
-    }).addSink(sinkFunction)
+    windowStream().addSink(sinkFunction)
 
     env.execute()
   }
