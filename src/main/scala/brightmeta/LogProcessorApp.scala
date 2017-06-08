@@ -28,22 +28,30 @@ object LogProcessorApp {
 
     val messageStream = env.addSource(sourceFunction).map(string => {
       val keyVal = string.split(",")
-      new Visits(keyVal(0), keyVal(1)) // (pageId, IP)
+      new Visits(keyVal(0), keyVal(1)) // (hostId, visitorIp)
     })
 
+    //TODO remove this test counter and debug logic
+    var testCounter = 0
     val keyedMessageStream = messageStream.keyBy(_.hostId)
       .mapWithState({
         (log, requesters:Option[(Int, MMap[String, Int])]) => {
-          var requester = requesters.getOrElse((0, MMap[String, Int]().withDefaultValue(0)))
-          val count = requester._1 + 1
+          testCounter += 1
+          val requester = requesters.getOrElse((0, MMap[String, Int]().withDefaultValue(0)))
           requester._2.update(log.visitorIP, requester._2(log.visitorIP) + 1)
-          (log.hostId, Some((requester)))
+
+          if(testCounter % 1000 == 0){
+            requesters
+          }
+
+          (log.hostId, Some((requester._1 + 1, requester._2)))
+
         }
       })
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
-    messageStream.map(log => log.visitorIP + "," + log.hostId)
+    messageStream.map(log => log.hostId + "," + log.visitorIP)
       .addSink(sinkFunction)
 
     env.execute()
