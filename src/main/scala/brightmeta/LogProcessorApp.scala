@@ -16,18 +16,17 @@ import scala.collection.mutable.{Map => MMap}
 
 case class Visit(hostId: String, visitorIP: String)
 
-class WindowSnapshot {
-  private var _requestCount: Int = 0
-  private var ddos = false
-  private var _requestStructure: MMap[String, (Int, MMap[String, Int])] = MMap[String, (Int, MMap[String, Int])]()
+class HostGroup {
+  private var _id:Int = _
+  private var _requestCount = 0
+  private var _reqeustMap = MMap[String, Int]()
 
+  def id = _id
   def requestCount = _requestCount
-  def requestStructure = _requestStructure
+  def requestMap = _reqeustMap
 
   def addRequest = {_requestCount += 1}
-
 }
-//object Visits
 
 object LogProcessorApp {
   def main(args: Array[String]): Unit = {
@@ -45,12 +44,9 @@ object LogProcessorApp {
       new Visit(keyVal(0), keyVal(1)) // (hostId, visitorIp)
     })
 
-    //TODO remove this test counter and debug logic
-
     /*val keyedMessageStream: DataStream[(String, (Int, MMap[String,Int]))] = messageStream.keyBy(_.hostId)
       .mapWithState({
         (log: Visit, requesters:Option[(Int, MMap[String, Int])]) => {
-          testCounter += 1
           val requester = requesters.getOrElse((0, MMap[String, Int]().withDefaultValue(0)))
           requester._2.update(log.visitorIP, requester._2(log.visitorIP) + 1)
 
@@ -59,7 +55,7 @@ object LogProcessorApp {
       })*/
 
 
-    val windowStream = messageStream.keyBy(_.hostId)
+    /*val windowStream = messageStream.keyBy(_.hostId)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new WindowSnapshot()){
         (accumulator, visit) => {
@@ -73,6 +69,18 @@ object LogProcessorApp {
           accumulator.requestStructure.update(visit.hostId, (hostTotal, hostData._2))
           accumulator
         }
+      }*/
+
+    val windowStream = messageStream.keyBy(_.hostId)
+      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+      .fold(new HostGroup()){
+        (group, visit) => {
+          group.addRequest
+          var requesterTotal = group.requestMap.getOrElse(visit.visitorIP, 0)
+          requesterTotal += 1
+          group.requestMap.update(visit.visitorIP, requesterTotal)
+          group
+        }
       }
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
@@ -82,9 +90,6 @@ object LogProcessorApp {
       acc.requestCount
       "Request count is: " + acc.requestCount
     }).addSink(sinkFunction)
-    
-    /*messageStream.map(log => log.hostId + "," + log.visitorIP)
-      .addSink(sinkFunction)*/
 
     env.execute()
   }
