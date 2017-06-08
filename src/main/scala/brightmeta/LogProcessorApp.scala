@@ -17,15 +17,12 @@ import scala.collection.mutable.{Map => MMap}
 case class Visit(hostId: String, visitorIP: String)
 
 class HostGroup {
-  private var _id:Int = _
-  private var _requestCount = 0
-  private var _reqeustMap = MMap[String, Int]()
+  var hostId:String = _
+  var requestCount = 0
+  var requestMap = MMap[String, Int]()
+  
+  def addRequest = {requestCount += 1}
 
-  def id = _id
-  def requestCount = _requestCount
-  def requestMap = _reqeustMap
-
-  def addRequest = {_requestCount += 1}
 }
 
 case class Notification(hostId:String, ddos:Boolean)
@@ -63,6 +60,7 @@ object LogProcessorApp {
       .fold(new HostGroup()){
         (group, visit) => {
           group.addRequest
+          group.hostId = visit.hostId
           var requesterTotal = group.requestMap.getOrElse(visit.visitorIP, 0)
           requesterTotal += 1
           group.requestMap.update(visit.visitorIP, requesterTotal)
@@ -73,7 +71,7 @@ object LogProcessorApp {
 
       var isDDos = false
       if(group.requestCount/group.requestMap.size > requestThreshold) isDDos = true
-      new Notification(group.id.toString, isDDos)
+      new Notification(group.hostId, isDDos)
       
     }).filter(notification => (
       notification.ddos
