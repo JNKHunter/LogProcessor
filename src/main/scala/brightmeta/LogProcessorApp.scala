@@ -12,6 +12,8 @@ import scala.collection.mutable.{Map => MMap}
   * Created by John on 6/6/17.
   */
 
+case class Visits(hostId: String, visitorIP: String)
+//object Visits
 
 object LogProcessorApp {
   def main(args: Array[String]): Unit = {
@@ -26,23 +28,22 @@ object LogProcessorApp {
 
     val messageStream = env.addSource(sourceFunction).map(string => {
       val keyVal = string.split(",")
-      (keyVal(0), keyVal(1)) // (hostId, IP)
+      new Visits(keyVal(0), keyVal(1)) // (pageId, IP)
     })
 
-    val keyedMessageStream = messageStream.keyBy(_._1)  // hostId
+    val keyedMessageStream = messageStream.keyBy(_.hostId)
       .mapWithState({
         (log, requesters:Option[(Int, MMap[String, Int])]) => {
           var requester = requesters.getOrElse((0, MMap[String, Int]().withDefaultValue(0)))
           val count = requester._1 + 1
-          val testlog = log
-          requester._2.update(log._2, requester._2(log._2) + 1)
-          (log._1, Some((requester)))
+          requester._2.update(log.visitorIP, requester._2(log.visitorIP) + 1)
+          (log.hostId, Some((requester)))
         }
       })
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
-    messageStream.map(log => log._1 + "," + log._2)
+    messageStream.map(log => log.visitorIP + "," + log.hostId)
       .addSink(sinkFunction)
 
     env.execute()
