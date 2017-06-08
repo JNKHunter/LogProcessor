@@ -19,7 +19,7 @@ case class Visit(hostId: String, visitorIP: String)
 class WindowSnapshot {
   private var _requestCount: Int = 0
   private var ddos = false
-  private var _requestStructure: MMap[String, MMap[String, Int]] = MMap[String, MMap[String, Int]]()
+  private var _requestStructure: MMap[String, (Int, MMap[String, Int])] = MMap[String, (Int, MMap[String, Int])]()
 
   def requestCount = _requestCount
   def requestStructure = _requestStructure
@@ -62,24 +62,26 @@ object LogProcessorApp {
     val windowStream = messageStream.keyBy(_.hostId)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new WindowSnapshot()){
-        (acc, visit) => {
+        (accumulator, visit) => {
+          accumulator.addRequest
+          var hostData = accumulator.requestStructure.getOrElse(visit.hostId, (0, MMap[String, Int]()))
+          var hostTotal = hostData._1 + 1
+          var requesterTotal = hostData._2.getOrElse(visit.visitorIP, 0)
+          var newRequesterTotal = requesterTotal + 1
+          hostData._2.update(visit.visitorIP, newRequesterTotal)
 
-          val hostAcc = acc.requestStructure.getOrElse(visit.hostId, MMap[String, Int]())
-          var requestAcc = hostAcc.getOrElse(visit.visitorIP, 0)
-          requestAcc += 1
-
-          hostAcc.update(visit.visitorIP, requestAcc)
-          acc.addRequest
-          //Determine when we should push to the notification stream
-          acc
+          accumulator.requestStructure.update(visit.hostId, (hostTotal, hostData._2))
+          accumulator
         }
       }
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
 
-    windowStream.map(acc => acc.requestCount.toString)
-      .addSink(sinkFunction)
+    windowStream.map(acc => {
+      acc.requestCount
+      "Request count is: " + acc.requestCount
+    }).addSink(sinkFunction)
     
     /*messageStream.map(log => log.hostId + "," + log.visitorIP)
       .addSink(sinkFunction)*/
