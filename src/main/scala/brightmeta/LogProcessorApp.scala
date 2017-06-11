@@ -36,8 +36,6 @@ object LogProcessorApp {
     val properties = new Properties()
     properties.setProperty("bootstrap.servers", params.get("bootstrap.servers", "localhost:9092"))
     properties.setProperty("zookeeper.connect", params.get("zookeeper.connect", "localhost:2181"))
-    properties.setProperty("group.id", params.get("group.id", "group1"))
-    properties.setProperty("group.id", params.get("group.id", "group1"))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(params.getInt("parallelism", 1))
@@ -81,7 +79,7 @@ object LogProcessorApp {
     }).filter(notification => (
       notification.ddos
     ))
-    
+
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
 
