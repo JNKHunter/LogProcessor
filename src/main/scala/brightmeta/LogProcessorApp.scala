@@ -8,6 +8,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTime
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
+import org.apache.flink.api.java.utils.ParameterTool
 import scala.collection.mutable.{Map => MMap}
 
 /**
@@ -30,12 +31,16 @@ case class Notification(hostId:String, ddos:Boolean)
 object LogProcessorApp {
   def main(args: Array[String]): Unit = {
 
+    val params = ParameterTool.fromArgs(args)
+
     val properties = new Properties()
-    properties.setProperty("bootstrap.servers", "localhost:9092")
-    properties.setProperty("zookeeper.connect", "localhost:2181")
-    properties.setProperty("group.id", "group1")
+    properties.setProperty("bootstrap.servers", params.get("bootstrap.servers", "localhost:9092"))
+    properties.setProperty("zookeeper.connect", params.get("zookeeper.connect", "localhost:2181"))
+    properties.setProperty("group.id", params.get("group.id", "group1"))
+    properties.setProperty("group.id", params.get("group.id", "group1"))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(params.getInt("parallelism", 1))
     val sourceFunction = new FlinkKafkaConsumer010[String]("logs", new SimpleStringSchema(), properties)
 
     val messageStream = env.addSource(sourceFunction).map(string => {
@@ -76,7 +81,7 @@ object LogProcessorApp {
     }).filter(notification => (
       notification.ddos
     ))
-
+    
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
 
