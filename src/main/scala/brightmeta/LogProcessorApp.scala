@@ -39,7 +39,8 @@ object LogProcessorApp {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(params.getInt("parallelism", 1))
-    val sourceFunction = new FlinkKafkaConsumer010[Log]("logs", new LogDeserializationSchema, properties)
+    val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-2", new LogDeserializationSchema, properties)
+    properties.setProperty("group.id", params.get("group.id", "group1"))
 
     /*val keyedMessageStream: DataStream[(String, (Int, MMap[String,Int]))] = messageStream.keyBy(_.hostId)
       .mapWithState({
@@ -51,7 +52,7 @@ object LogProcessorApp {
         }
       })*/
 
-    val requestThreshold = 10
+    val requestThreshold = 100
 
     val windowStream = env.addSource(sourceFunction).keyBy(_.getHostId)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
