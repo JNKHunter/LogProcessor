@@ -4,7 +4,7 @@ import java.util.Properties
 
 import brightmeta.data.{Log, LogDeserializationSchema}
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.scala.{DataStream, KeyedStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
@@ -56,31 +56,41 @@ object LogProcessorApp {
 
     val requestThreshold = 5
 
-    val windowStream = env.addSource(sourceFunction).keyBy(_.getKey)
-      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-      .fold(new HostGroup()){
-        (group, visit) => {
-          group.addRequest
-          group.hostId = visit.getHostId
-          var requesterTotal = group.requestMap.getOrElse(visit.getVisitorIP, 0)
-          requesterTotal += 1
-          group.requestMap.update(visit.getVisitorIP, requesterTotal)
-          group
-        }
-      }.map(group => {
+    val keyedStream: KeyedStream[Log, (String, String)] = env.addSource(sourceFunction).keyBy(_.getKey)
+      .map(log => {
+        println(log.getMachineKey)
+        log
+      }).keyBy(_.getKey)
+
+    val windowedStream = keyedStream.window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+
+    val foldedStream = windowedStream.fold(new HostGroup()){
+      (group, visit) => {
+        group.addRequest
+        group.hostId = visit.getHostId
+        var requesterTotal = group.requestMap.getOrElse(visit.getVisitorIP, 0)
+        requesterTotal += 1
+        group.requestMap.update(visit.getVisitorIP, requesterTotal)
+        group
+      }
+    }
+
+    val mappedFoldedStream = foldedStream.map(group => {
       var reqPerWindow = group.requestCount/group.requestMap.size
-      
+
       var isDDos = false
       if(group.requestCount/group.requestMap.size > requestThreshold) isDDos = true
       new Notification(group.hostId, isDDos)
-      
-    }).filter(notification => (
+
+    })
+
+    val filteredStream =  mappedFoldedStream.filter(notification => (
       notification.ddos
-    )).keyBy(_.hostId).reduce((notification1, notification2) => notification1)
+      )).keyBy(_.hostId).reduce((notification1, notification2) => notification1)
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
-    
-    windowStream.map(notification => notification.hostId).addSink(sinkFunction)
+
+    filteredStream.map(notification => notification.hostId).addSink(sinkFunction)
 
     env.execute()
   }
