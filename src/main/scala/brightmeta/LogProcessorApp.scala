@@ -18,6 +18,7 @@ import scala.collection.mutable.{Map => MMap}
   */
 
 class HostGroup {
+  var machineId:String = _
   var hostId:String = _
   var requestCount = 0
   var requestMap = MMap[String, Int]()
@@ -55,7 +56,7 @@ object LogProcessorApp {
 
     val requestThreshold = 5
 
-    val windowStream = env.addSource(sourceFunction).keyBy(_.getHostId)
+    val windowStream = env.addSource(sourceFunction).keyBy(_.getKey)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new HostGroup()){
         (group, visit) => {
@@ -75,7 +76,7 @@ object LogProcessorApp {
       
     }).filter(notification => (
       notification.ddos
-    ))
+    )).keyBy(_.hostId).reduce((notification1, notification2) => notification1)
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
     
