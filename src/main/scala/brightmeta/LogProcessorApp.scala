@@ -1,8 +1,9 @@
 package brightmeta
 
-import java.util.Properties
+import java.util.{Properties, Random}
 
 import brightmeta.data.{Log, LogDeserializationSchema}
+import org.apache.flink.api.common.functions.Partitioner
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
@@ -40,6 +41,13 @@ object LogProcessorApp {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(params.getInt("parallelism", 10))
 
+    class LogPartitioner extends Partitioner[String] {
+      val random = new Random()
+      override def partition(key: String, numPartitions: Int): Int = {
+         random.nextInt(numPartitions)
+      }
+    }
+
     val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10", new LogDeserializationSchema, properties)
     properties.setProperty("group.id", params.get("group.id", "group1"))
 
@@ -54,9 +62,11 @@ object LogProcessorApp {
       })*/
 
     val requestThreshold = 5
+    val keyedStream = env.addSource(sourceFunction)
+      .partitionCustom(new LogPartitioner(), _.getPartitionKey)
+      .keyBy(_.getPartitionKey)
 
-
-    val windowStream = env.addSource(sourceFunction).keyBy(_.getPartitionKey)
+    val windowStream = keyedStream.keyBy(_.getPartitionKey)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new HostGroup()){
         (group, visit) => {
