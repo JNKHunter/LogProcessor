@@ -37,6 +37,7 @@ object LogProcessorApp {
     val properties = new Properties()
     properties.setProperty("bootstrap.servers", params.get("bootstrap.servers", "localhost:9092"))
     properties.setProperty("zookeeper.connect", params.get("zookeeper.connect", "localhost:2181"))
+    properties.setProperty("group.id", params.get("group.id", "group1"))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(params.getInt("parallelism", 10))
@@ -47,9 +48,7 @@ object LogProcessorApp {
       }
     }
 
-    val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10", new LogDeserializationSchema, properties)
-    properties.setProperty("group.id", params.get("group.id", "group1"))
-
+    val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10",new LogDeserializationSchema, properties)
     /*val keyedMessageStream: DataStream[(String, (Int, MMap[String,Int]))] = messageStream.keyBy(_.hostId)
       .mapWithState({
         (log: Visit, requesters:Option[(Int, MMap[String, Int])]) => {
@@ -62,7 +61,6 @@ object LogProcessorApp {
 
     val requestThreshold = 5
     val keyedStream = env.addSource(sourceFunction)
-      .partitionCustom(new LogPartitioner(), _.getPartitionKey)
       .keyBy(_.getPartitionKey)
 
     val windowStream = keyedStream
