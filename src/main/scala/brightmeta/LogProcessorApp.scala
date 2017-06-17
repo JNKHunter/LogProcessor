@@ -1,6 +1,6 @@
 package brightmeta
 
-import java.util.{Properties, Random}
+import java.util.Properties
 
 import brightmeta.data.{Log, LogDeserializationSchema}
 import org.apache.flink.api.common.functions.Partitioner
@@ -42,9 +42,8 @@ object LogProcessorApp {
     env.setParallelism(params.getInt("parallelism", 10))
 
     class LogPartitioner extends Partitioner[String] {
-      val random = new Random()
       override def partition(key: String, numPartitions: Int): Int = {
-         random.nextInt(numPartitions)
+        Integer.parseInt(key)
       }
     }
 
@@ -66,7 +65,7 @@ object LogProcessorApp {
       .partitionCustom(new LogPartitioner(), _.getPartitionKey)
       .keyBy(_.getPartitionKey)
 
-    val windowStream = keyedStream.keyBy(_.getPartitionKey)
+    val windowStream = keyedStream
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new HostGroup()){
         (group, visit) => {
