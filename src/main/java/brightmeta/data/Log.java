@@ -6,10 +6,16 @@ package brightmeta.data;
 public class Log {
     private String hostId;
     private String visitorIP;
+    private String partitionKey;
 
-    public Log(String host, String visitorIP) {
+    public Log(String key, String host, String visitorIP) {
+        this.partitionKey = key;
         this.hostId = host;
         this.visitorIP = visitorIP;
+    }
+
+    public String getPartitionKey() {
+        return partitionKey;
     }
 
     public String getHostId() {

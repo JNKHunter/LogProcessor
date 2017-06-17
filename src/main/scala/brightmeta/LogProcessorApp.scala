@@ -38,7 +38,7 @@ object LogProcessorApp {
     properties.setProperty("zookeeper.connect", params.get("zookeeper.connect", "localhost:2181"))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(params.getInt("parallelism", 1))
+    env.setParallelism(params.getInt("parallelism", 10))
 
     val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10", new LogDeserializationSchema, properties)
     properties.setProperty("group.id", params.get("group.id", "group1"))
@@ -55,7 +55,8 @@ object LogProcessorApp {
 
     val requestThreshold = 5
 
-    val windowStream = env.addSource(sourceFunction).keyBy(_.getHostId)
+
+    val windowStream = env.addSource(sourceFunction).keyBy(_.getPartitionKey)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new HostGroup()){
         (group, visit) => {
