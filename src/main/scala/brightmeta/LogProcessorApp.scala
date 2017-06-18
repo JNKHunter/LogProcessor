@@ -59,7 +59,7 @@ object LogProcessorApp {
         }
       })*/
 
-    val requestThreshold = 5
+    val requestThreshold = 100
     val keyedStream = env.addSource(sourceFunction)
       .keyBy(_.getPartitionKey)
 
@@ -76,26 +76,33 @@ object LogProcessorApp {
         }
       }.map(group => {
       var reqPerWindow = group.requestCount/group.requestMap.size
-      
+
       if(group.requestCount/group.requestMap.size > requestThreshold)
         group.isDDos = true
       group
-      
+
     }).filter(group => (
       group.isDDos
-    )).keyBy(_.hostId).reduce( (group1, group2) => {
-      group1.requestCount += group2.requestCount
+    ))
 
-      val mergedMap = group1.requestMap ++ group2.requestMap.map {
-        case (ip,count) => ip -> (count + group1.requestMap.getOrElse(ip,0)) }
+    val foldedWindowStream = windowStream.keyBy(_.hostId)
+      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+      .reduce( (group1, group2) => {
 
-      group1.requestMap = mergedMap
-      group1
-    })
+        group1.requestCount = group1.requestCount + group2.requestCount
+
+        val mergedMap = group1.requestMap ++ group2.requestMap.map {
+          case (ip,count) => ip -> (count + group1.requestMap.getOrElse(ip,0)) }
+
+        group1.requestMap = mergedMap
+        group1
+      })
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
-    
-    windowStream.map(group => group.hostId).addSink(sinkFunction)
+
+    foldedWindowStream.map(group => {
+      group.hostId + " , " + group.requestCount.toString + " , " + " number of reqeusters: " + group.requestMap.size
+    }).addSink(sinkFunction)
 
     env.execute()
   }
