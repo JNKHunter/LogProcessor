@@ -2,7 +2,7 @@ package brightmeta
 
 import java.util.Properties
 
-import brightmeta.data.{Log, LogDeserializationSchema}
+import brightmeta.data.{HostGroup, Log, LogDeserializationSchema}
 import org.apache.flink.api.common.functions.Partitioner
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
@@ -17,15 +17,6 @@ import scala.collection.mutable.{Map => MMap}
 /**
   * Created by John on 6/6/17.
   */
-
-class HostGroup {
-  var hostId:String = _
-  var requestCount = 0
-  var isDDos = false;
-  var requestMap = MMap[String, Int]()
-  def addRequest = {requestCount += 1}
-
-}
 
 case class Notification(hostId:String, ddos:Boolean)
 
@@ -67,41 +58,42 @@ object LogProcessorApp {
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new HostGroup()){
         (group, visit) => {
-          group.addRequest
-          group.hostId = visit.getHostId
-          var requesterTotal = group.requestMap.getOrElse(visit.getVisitorIP, 0)
-          requesterTotal += 1
-          group.requestMap.update(visit.getVisitorIP, requesterTotal)
+          group.setHostId(visit.getHostId);
+          group.addIp(visit.getVisitorIP);
           group
         }
       }.map(group => {
-      var reqPerWindow = group.requestCount/group.requestMap.size
+      var reqPerWindow = group.getRequestCount/group.getNumberOfRequesters
 
-      if(group.requestCount/group.requestMap.size > requestThreshold)
-        group.isDDos = true
+      if(reqPerWindow > requestThreshold)  {
+        group.setDDos(true);
+        println("Total memory used is: " + Runtime.getRuntime().totalMemory())
+        println("Available memory is: " + Runtime.getRuntime().maxMemory())
+      }
       group
 
     }).filter(group => (
       group.isDDos
     ))
 
-    val foldedWindowStream = windowStream.keyBy(_.hostId)
+    val foldedWindowStream = windowStream.keyBy(_.getHostId)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .reduce( (group1, group2) => {
 
-        group1.requestCount = group1.requestCount + group2.requestCount
+        group1.setRequestCount(group1.getRequestCount + group2.getRequestCount);
 
-        val mergedMap = group1.requestMap ++ group2.requestMap.map {
+        //TODO: Replace this garbage with a way to get the top 10 requesters (maybe a priority queue)
+        /*val mergedMap = group1.requestMap ++ group2.requestMap.map {
           case (ip,count) => ip -> (count + group1.requestMap.getOrElse(ip,0)) }
 
-        group1.requestMap = mergedMap
+        group1.requestMap = mergedMap*/
         group1
       })
 
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
     foldedWindowStream.map(group => {
-      group.hostId + " , " + group.requestCount.toString + " , " + " number of reqeusters: " + group.requestMap.size
+      group.getHostId + " , " + group.getRequestCount + " , " + " number of reqeusters: " + group.getNumberOfRequesters
     }).addSink(sinkFunction)
 
     env.execute()

@@ -14,7 +14,10 @@ val flinkDependencies = Seq(
   "org.apache.flink" %% "flink-scala" % flinkVersion % "provided",
   "org.apache.flink" %% "flink-streaming-scala" % flinkVersion % "provided",
   "org.apache.flink" %% "flink-connector-kafka-0.10" % flinkVersion,
-  "junit" % "junit" % "4.12" % "test",
+  // https://mvnrepository.com/artifact/com.clearspring.analytics/stream
+  "com.clearspring.analytics" % "stream" % "2.9.5",
+
+"junit" % "junit" % "4.12" % "test",
   "org.hamcrest" % "hamcrest-all" % "1.3" % "test")
 
 lazy val root = (project in file(".")).
