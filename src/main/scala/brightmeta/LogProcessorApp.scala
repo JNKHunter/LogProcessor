@@ -93,7 +93,7 @@ object LogProcessorApp {
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
     foldedWindowStream.map(group => {
-      group.getHostId + " , " + group.getRequestCount + " , " + " number of reqeusters: " + group.getNumberOfRequesters
+      group.getHostId + "," + group.getRequestCount
     }).addSink(sinkFunction)
 
     env.execute()
