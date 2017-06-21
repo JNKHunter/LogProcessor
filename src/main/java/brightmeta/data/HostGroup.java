@@ -2,6 +2,7 @@ package brightmeta.data;
 
 import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 import com.clearspring.analytics.stream.frequency.CountMinSketch;
+import com.google.gson.annotations.Expose;
 
 import java.util.Random;
 
@@ -10,8 +11,9 @@ import java.util.Random;
  */
 
 public class HostGroup {
-
+    @Expose
     private String hostId;
+    @Expose
     private long requestCount;
     private boolean isDDos;
     private CountMinSketch ipCounts;
