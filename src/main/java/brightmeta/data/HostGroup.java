@@ -24,6 +24,17 @@ public class HostGroup {
     public HostGroup() {
         ipCounts = new CountMinSketch(0.001, 0.99, new Random().nextInt(100));
         requesterSet = new HyperLogLog(0.03);
+        topX = new PriorityQueue<>((requester1, requester2) -> {
+            if (requester1.getCount() > requester2.getCount()) {
+                return 1;
+            }
+
+            if (requester1.getCount() < requester2.getCount()) {
+                return -1;
+            }
+
+            return 0;
+        });
     }
 
     public void addRequest() {
