@@ -4,6 +4,7 @@ import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 import com.clearspring.analytics.stream.frequency.CountMinSketch;
 import com.google.gson.annotations.Expose;
 
+import java.util.PriorityQueue;
 import java.util.Random;
 
 /**
@@ -18,6 +19,7 @@ public class HostGroup {
     private boolean isDDos;
     private CountMinSketch ipCounts;
     private HyperLogLog requesterSet;
+    private PriorityQueue<Requester> topX;
 
     public HostGroup() {
         ipCounts = new CountMinSketch(0.001, 0.99, new Random().nextInt(100));
