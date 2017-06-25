@@ -1,5 +1,6 @@
 package brightmeta
 
+import java.io.FileInputStream
 import java.util.Properties
 
 import brightmeta.data.{HostGroup, Log, LogDeserializationSchema}
@@ -26,12 +27,25 @@ object LogProcessorApp {
     val params = ParameterTool.fromArgs(args)
 
     val properties = new Properties()
-    properties.setProperty("bootstrap.servers", params.get("bootstrap.servers", "localhost:9092"))
-    properties.setProperty("zookeeper.connect", params.get("zookeeper.connect", "localhost:2181"))
-    properties.setProperty("group.id", params.get("group.id", "group1"))
+    try {
+      properties.load(new FileInputStream("src/main/resources/config.properties"))
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        sys.exit(1)
+    }
+
+
+    properties.setProperty("bootstrap.servers", params.get("bootstrap.servers",
+      properties.getProperty("bootstrap.servers")))
+    properties.setProperty("zookeeper.connect", params.get("zookeeper.connect",
+      properties.getProperty("zookeeper.connect")))
+    properties.setProperty("group.id", params.get("group.id",
+      properties.getProperty("group.id")))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(params.getInt("parallelism", 10))
+
+    env.setParallelism(params.getInt("parallelism", properties.getProperty("parallelism").toInt))
 
     class LogPartitioner extends Partitioner[String] {
       override def partition(key: String, numPartitions: Int): Int = {
@@ -58,15 +72,15 @@ object LogProcessorApp {
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .fold(new HostGroup()) {
         (group, visit) => {
-          group.setHostId(visit.getHostId);
-          group.addIp(visit.getVisitorIP);
+          group.setHostId(visit.getHostId)
+          group.addIp(visit.getVisitorIP)
           group
         }
       }.map(group => {
       var reqPerWindow = group.getRequestCount / group.getNumberOfRequesters
 
       if (reqPerWindow > requestThreshold) {
-        group.setDDos(true);
+        group.setDDos(true)
       }
       group
 
@@ -78,13 +92,7 @@ object LogProcessorApp {
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .reduce((group1, group2) => {
 
-        group1.setRequestCount(group1.getRequestCount + group2.getRequestCount);
-
-        //TODO: Replace this garbage with a way to get the top 10 requesters (maybe a priority queue)
-        /*val mergedMap = group1.requestMap ++ group2.requestMap.map {
-          case (ip,count) => ip -> (count + group1.requestMap.getOrElse(ip,0)) }
-
-        group1.requestMap = mergedMap*/
+        group1.setRequestCount(group1.getRequestCount + group2.getRequestCount)
         group1
       })
 
