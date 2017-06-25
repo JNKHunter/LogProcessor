@@ -67,8 +67,6 @@ object LogProcessorApp {
 
       if (reqPerWindow > requestThreshold) {
         group.setDDos(true);
-        println("Total memory used is: " + Runtime.getRuntime().totalMemory())
-        println("Available memory is: " + Runtime.getRuntime().maxMemory())
       }
       group
 
