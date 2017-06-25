@@ -13,8 +13,6 @@ import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, Flink
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 import org.apache.flink.api.java.utils.ParameterTool
 
-import scala.collection.mutable.{Map => MMap}
-
 /**
   * Created by John on 6/6/17.
   */
@@ -47,6 +45,8 @@ object LogProcessorApp {
 
     env.setParallelism(params.getInt("parallelism", properties.getProperty("parallelism").toInt))
 
+    val requestThreshold = properties.getProperty("requestThreshold").toInt
+
     class LogPartitioner extends Partitioner[String] {
       override def partition(key: String, numPartitions: Int): Int = {
         Integer.parseInt(key)
@@ -64,7 +64,6 @@ object LogProcessorApp {
         }
       })*/
 
-    val requestThreshold = 100
     val keyedStream = env.addSource(sourceFunction)
       .keyBy(_.getPartitionKey)
 
