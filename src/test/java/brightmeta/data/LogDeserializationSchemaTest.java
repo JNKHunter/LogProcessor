@@ -18,16 +18,16 @@ public class LogDeserializationSchemaTest {
 
     @Test
     public void testDeserialize() throws Exception {
-        String host = "1";
+        String partition = "1";
+        String host = "149.21.45.1";
         String visitor = "192.168.1.1";
-        String logString = host + "," + visitor;
+        String logString = partition + "," + host + "," + visitor;
         byte[] message = logString.getBytes();
 
 
         Log log = schema.deserialize(message);
         assertEquals(log.getHostId(), host);
         assertEquals(log.getVisitorIP(), visitor);
-
     }
 
 }
