@@ -18,7 +18,7 @@ import scala.collection.mutable.{Map => MMap}
   * Created by John on 6/6/17.
   */
 
-case class Notification(hostId:String, ddos:Boolean)
+case class Notification(hostId: String, ddos: Boolean)
 
 object LogProcessorApp {
   def main(args: Array[String]): Unit = {
@@ -39,7 +39,7 @@ object LogProcessorApp {
       }
     }
 
-    val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10",new LogDeserializationSchema, properties)
+    val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10", new LogDeserializationSchema, properties)
     /*val keyedMessageStream: DataStream[(String, (Int, MMap[String,Int]))] = messageStream.keyBy(_.hostId)
       .mapWithState({
         (log: Visit, requesters:Option[(Int, MMap[String, Int])]) => {
@@ -56,16 +56,16 @@ object LogProcessorApp {
 
     val windowStream = keyedStream
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-      .fold(new HostGroup()){
+      .fold(new HostGroup()) {
         (group, visit) => {
           group.setHostId(visit.getHostId);
           group.addIp(visit.getVisitorIP);
           group
         }
       }.map(group => {
-      var reqPerWindow = group.getRequestCount/group.getNumberOfRequesters
+      var reqPerWindow = group.getRequestCount / group.getNumberOfRequesters
 
-      if(reqPerWindow > requestThreshold)  {
+      if (reqPerWindow > requestThreshold) {
         group.setDDos(true);
         println("Total memory used is: " + Runtime.getRuntime().totalMemory())
         println("Available memory is: " + Runtime.getRuntime().maxMemory())
@@ -74,11 +74,11 @@ object LogProcessorApp {
 
     }).filter(group => (
       group.isDDos
-    ))
+      ))
 
     val foldedWindowStream = windowStream.keyBy(_.getHostId)
       .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-      .reduce( (group1, group2) => {
+      .reduce((group1, group2) => {
 
         group1.setRequestCount(group1.getRequestCount + group2.getRequestCount);
 
@@ -90,7 +90,7 @@ object LogProcessorApp {
         group1
       })
 
-    val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
+    val sinkFunction = new FlinkKafkaProducer010[String]("notifications", new SimpleStringSchema(), properties)
 
     foldedWindowStream.map(group => {
       group.getHostId + "," + group.getRequestCount

@@ -58,5 +58,5 @@ public class HostGroup {
     public long getNumberOfRequesters() {
         return requesterSet.cardinality();
     }
-    
+
 }
