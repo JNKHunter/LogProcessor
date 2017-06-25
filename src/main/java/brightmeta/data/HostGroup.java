@@ -2,9 +2,6 @@ package brightmeta.data;
 
 import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 import com.clearspring.analytics.stream.frequency.CountMinSketch;
-import com.google.gson.annotations.Expose;
-
-import java.util.PriorityQueue;
 import java.util.Random;
 
 /**
