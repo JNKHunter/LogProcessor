@@ -1,10 +1,8 @@
 package brightmeta
 
-import java.io.FileInputStream
 import java.util.{Properties, ResourceBundle}
 
 import brightmeta.data.{HostGroup, Log, LogDeserializationSchema}
-import org.apache.flink.api.common.functions.Partitioner
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
@@ -15,7 +13,7 @@ import org.apache.flink.api.java.utils.ParameterTool
 
 /**
   * Created by John on 6/6/17.
-  */
+  * */
 
 case class Notification(hostId: String, ddos: Boolean)
 
@@ -35,16 +33,9 @@ object LogProcessorApp {
       config.getString("group.id")))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-
     env.setParallelism(params.getInt("parallelism", config.getString("parallelism").toInt))
 
     val requestThreshold = config.getString("requestThreshold").toInt
-
-    class LogPartitioner extends Partitioner[String] {
-      override def partition(key: String, numPartitions: Int): Int = {
-        Integer.parseInt(key)
-      }
-    }
 
     val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10", new LogDeserializationSchema, properties)
 

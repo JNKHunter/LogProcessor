@@ -17,6 +17,7 @@ public class HostGroup {
     private HyperLogLog requesterSet;
 
     public HostGroup() {
+        //These values set the parameters of our error tolerance on count min sketch, and hyperloglog
         ipCounts = new CountMinSketch(0.001, 0.99, new Random().nextInt(100));
         requesterSet = new HyperLogLog(0.03);
     }
