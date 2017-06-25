@@ -47,15 +47,6 @@ object LogProcessorApp {
     }
 
     val sourceFunction = new FlinkKafkaConsumer010[Log]("logs-replicated-10", new LogDeserializationSchema, properties)
-    /*val keyedMessageStream: DataStream[(String, (Int, MMap[String,Int]))] = messageStream.keyBy(_.hostId)
-      .mapWithState({
-        (log: Visit, requesters:Option[(Int, MMap[String, Int])]) => {
-          val requester = requesters.getOrElse((0, MMap[String, Int]().withDefaultValue(0)))
-          requester._2.update(log.visitorIP, requester._2(log.visitorIP) + 1)
-
-          (log, Some((requester._1 + 1, requester._2)))
-        }
-      })*/
 
     val keyedStream = env.addSource(sourceFunction)
       .keyBy(_.getPartitionKey)
