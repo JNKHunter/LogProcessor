@@ -11,7 +11,6 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 import org.apache.flink.api.java.utils.ParameterTool
-import org.codehaus.jackson.map.ObjectMapper
 
 import scala.collection.mutable.{Map => MMap}
 
@@ -33,8 +32,6 @@ object LogProcessorApp {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(params.getInt("parallelism", 10))
-
-    val mapper: ObjectMapper = new ObjectMapper()
 
     class LogPartitioner extends Partitioner[String] {
       override def partition(key: String, numPartitions: Int): Int = {
@@ -96,7 +93,7 @@ object LogProcessorApp {
     val sinkFunction = new FlinkKafkaProducer010[String]("notifications",new SimpleStringSchema(), properties)
 
     foldedWindowStream.map(group => {
-      group.getHostId + "," + group.getRequestCount + " - " + mapper.writeValueAsString(group)
+      group.getHostId + "," + group.getRequestCount
     }).addSink(sinkFunction)
 
     env.execute()
