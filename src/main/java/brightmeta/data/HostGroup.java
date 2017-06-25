@@ -2,6 +2,8 @@ package brightmeta.data;
 
 import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 import com.clearspring.analytics.stream.frequency.CountMinSketch;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.Random;
 
 /**
@@ -11,8 +13,11 @@ import java.util.Random;
 public class HostGroup {
     private String hostId;
     private long requestCount;
+    @JsonIgnore
     private boolean isDDos;
+    @JsonIgnore
     private CountMinSketch ipCounts;
+    @JsonIgnore
     private HyperLogLog requesterSet;
 
     public HostGroup() {
