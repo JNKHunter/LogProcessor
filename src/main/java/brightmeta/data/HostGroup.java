@@ -12,9 +12,7 @@ import java.util.Random;
  */
 
 public class HostGroup {
-    @Expose
     private String hostId;
-    @Expose
     private long requestCount;
     private boolean isDDos;
     private CountMinSketch ipCounts;

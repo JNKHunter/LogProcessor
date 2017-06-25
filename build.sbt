@@ -14,11 +14,7 @@ val flinkDependencies = Seq(
   "org.apache.flink" %% "flink-scala" % flinkVersion % "provided",
   "org.apache.flink" %% "flink-streaming-scala" % flinkVersion % "provided",
   "org.apache.flink" %% "flink-connector-kafka-0.10" % flinkVersion,
-  // https://mvnrepository.com/artifact/com.clearspring.analytics/stream
-  // https://mvnrepository.com/artifact/com.google.code.gson/gson
-  "com.google.code.gson" % "gson" % "2.8.1",
   "com.clearspring.analytics" % "stream" % "2.9.5",
-
   "junit" % "junit" % "4.12" % "test",
   "org.hamcrest" % "hamcrest-all" % "1.3" % "test")
 
