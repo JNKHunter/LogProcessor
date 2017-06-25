@@ -1,7 +1,7 @@
 package brightmeta
 
 import java.io.FileInputStream
-import java.util.Properties
+import java.util.{Properties, ResourceBundle}
 
 import brightmeta.data.{HostGroup, Log, LogDeserializationSchema}
 import org.apache.flink.api.common.functions.Partitioner
@@ -25,27 +25,20 @@ object LogProcessorApp {
     val params = ParameterTool.fromArgs(args)
 
     val properties = new Properties()
-    try {
-      properties.load(new FileInputStream("src/main/resources/config.properties"))
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        sys.exit(1)
-    }
-
-
+    val config: ResourceBundle = ResourceBundle.getBundle("config")
+    
     properties.setProperty("bootstrap.servers", params.get("bootstrap.servers",
-      properties.getProperty("bootstrap.servers")))
+      config.getString("bootstrap.servers")))
     properties.setProperty("zookeeper.connect", params.get("zookeeper.connect",
-      properties.getProperty("zookeeper.connect")))
+      config.getString("zookeeper.connect")))
     properties.setProperty("group.id", params.get("group.id",
-      properties.getProperty("group.id")))
+      config.getString("group.id")))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    env.setParallelism(params.getInt("parallelism", properties.getProperty("parallelism").toInt))
+    env.setParallelism(params.getInt("parallelism", config.getString("parallelism").toInt))
 
-    val requestThreshold = properties.getProperty("requestThreshold").toInt
+    val requestThreshold = config.getString("requestThreshold").toInt
 
     class LogPartitioner extends Partitioner[String] {
       override def partition(key: String, numPartitions: Int): Int = {
